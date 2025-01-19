@@ -1,9 +1,9 @@
-// const clientId = import.meta.env.VITE_CLIENT_ID;
-// o process.env.VITE_CLIENT_ID;
-const clientId = "4d394fd556674a0e95a04ad58648e026";
+//? Recuperar el code de spotify
+const clientId = import.meta.env.VITE_CLIENT_ID;
 const params = new URLSearchParams(window.location.search);
 const code = params.get("code");
 
+//? Flujo de autentificación, si no hay code, redirigir a la página de autentificación. Si lo hay, obtener el token de acceso y los datos del usuario.
 if (!code) {
     redirectToAuthCodeFlow(clientId);
 } else {
@@ -16,24 +16,28 @@ if (!code) {
     populateTopArtists(topArtists);
 }
 
-
+//? Redirigir a la página de autentificación, 
 export async function redirectToAuthCodeFlow(clientId) {
     const verifier = generateCodeVerifier(128);
     const challenge = await generateCodeChallenge(verifier);
 
+    //? Guardar el verifier en localStorage para poder usarlo en el callback (Y comprobar que es el mismo y no hay ataque de CSRF o similar)
     localStorage.setItem("verifier", verifier);
-
     const params = new URLSearchParams();
     params.append("client_id", clientId);
     params.append("response_type", "code");
     params.append("redirect_uri", "http://localhost:5173/callback");
+
+    //? Cambiar el scope según las necesidades
     params.append("scope", "user-read-private user-read-email user-top-read playlist-modify-private playlist-modify-public");
+
     params.append("code_challenge_method", "S256");
     params.append("code_challenge", challenge);
 
     window.location = `https://accounts.spotify.com/authorize?${params.toString()}`;
 }
 
+//? Generar un código aleatorio para el code_verifier.
 function generateCodeVerifier(length) {
     let text = '';
     let possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -44,6 +48,7 @@ function generateCodeVerifier(length) {
     return text;
 }
 
+//? Generar el code_challenge a partir del code_verifier, usando SHA-256 y codificación Base64 URL-safe..
 async function generateCodeChallenge(codeVerifier) {
     const data = new TextEncoder().encode(codeVerifier);
     const digest = await window.crypto.subtle.digest('SHA-256', data);
@@ -53,7 +58,7 @@ async function generateCodeChallenge(codeVerifier) {
         .replace(/=+$/, '');
 }
 
-
+//? Obtener el token de acceso enviando una solicitud POST a Spotify para intercambiar el code por un access_token usando el code_verifier.
 async function getAccessToken(clientId, code) {
     const verifier = localStorage.getItem("verifier");
 
@@ -74,6 +79,7 @@ async function getAccessToken(clientId, code) {
     return access_token;
 }
 
+//? Obtener los datos del usuario, las canciones y los artistas más escuchados.
 async function fetchProfile(token) {
     const result = await fetch("https://api.spotify.com/v1/me", {
         method: "GET", headers: { Authorization: `Bearer ${token}` }
@@ -98,6 +104,8 @@ async function fetchTopArtists(token) {
     return await result.json();
 }
 
+
+//? Rellenar la interfaz de usuario con los datos del perfil, las canciones y los artistas.
 function populateUI(profile) {
     document.getElementById("displayName").innerText = profile.display_name;
     if (profile.images[0]) {
@@ -115,15 +123,7 @@ function populateUI(profile) {
     document.getElementById("url").setAttribute("href", profile.href);
 }
 
-// function populateTopTracks(tracks) {
-//     const topTracks = document.getElementById("topTracks");
-//     tracks.items.forEach(track => {
-//         const trackElement = document.createElement("li");
-//         trackElement.innerText = track.name;
-//         topTracks.appendChild(trackElement);
-//     });
-// }
-
+//? Crea tarjetas de Bootstrap para cada pista principal y las añade al DOM.
 function populateTopTracks(tracks) {
     const topTracks = document.getElementById("topTracks");
     tracks.items.forEach(track => {
@@ -163,16 +163,6 @@ function populateTopTracks(tracks) {
     });
 }
 
-// function populateTopArtists(artists) {
-//     const topArtists = document.getElementById("topArtists");
-//     artists.items.forEach(artist => {
-//         const artistElement = document.createElement("li");
-//         artistElement.innerText = artist.name;
-//         topArtists.appendChild(artistElement);
-//     });
-// }
-
-
 function populateTopArtists(artists) {
     const topArtists = document.getElementById("topArtists");
     artists.items.forEach(artist => {
@@ -194,7 +184,7 @@ function populateTopArtists(artists) {
 
         const cardText = document.createElement("p");
         cardText.className = "card-text";
-        cardText.innerText = `Followers: ${artist.followers.total} | Popularity: ${artist.popularity}`; // Assuming the artist object has followers
+        cardText.innerText = `Followers: ${artist.followers.total} | Popularity: ${artist.popularity}`; 
 
         const genreList = document.createElement("ul");
         genreList.className = "list-group list-group-flush";
@@ -207,7 +197,7 @@ function populateTopArtists(artists) {
 
         const cardLink = document.createElement("a");
         cardLink.className = "btn btn-primary";
-        cardLink.href = artist.external_urls.spotify; // Assuming the artist object has external URLs
+        cardLink.href = artist.external_urls.spotify; 
         cardLink.innerText = "Go to artist";
 
         cardBody.appendChild(cardTitle);
